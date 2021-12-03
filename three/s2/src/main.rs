@@ -7,10 +7,18 @@ fn main() {
         .map(Result::unwrap)
         .collect::<Vec<u16>>();
 
-    let output = run(&input, 12);
-    println!("Output: {}", output.0 * output.1);
-    let ogr = filter_input(&input, bin2vec(output.0, 12), LifeSupportRating::Ogr);
-    let csr = filter_input(&input, bin2vec(output.1, 12), LifeSupportRating::Csr);
+    let gamma_and_epsilon = run(&input, 12);
+    println!("Output: {}", gamma_and_epsilon.0 * gamma_and_epsilon.1);
+    let ogr = filter_input(
+        &input,
+        bin2vec(gamma_and_epsilon.0, 12),
+        LifeSupportRating::Ogr,
+    );
+    let csr = filter_input(
+        &input,
+        bin2vec(gamma_and_epsilon.1, 12),
+        LifeSupportRating::Csr,
+    );
     let result: u64 = ogr as u64 * csr as u64;
     println!("Output: {}", result);
 }
@@ -19,25 +27,25 @@ fn run(input: &Vec<u16>, nb_bit: usize) -> (usize, usize) {
     let mut gamma: Vec<&str> = Vec::with_capacity(nb_bit);
     let mut bit: Vec<usize> = Vec::with_capacity(nb_bit);
 
-    for b in (0..nb_bit).rev() {
+    for bit_index in (0..nb_bit).rev() {
         // Initialise output vector
         gamma.push("0");
         // contruct a table of bit
-        bit.push(2usize.pow(b as u32));
+        bit.push(2usize.pow(bit_index as u32));
     }
 
-    for b in 0..nb_bit {
+    for bit_index in 0..nb_bit {
         let mut n_one = 0;
-        for v in input {
-            if v & bit[b] as u16 > 0 {
+        for item in input {
+            if item & bit[bit_index] as u16 > 0 {
                 n_one += 1;
             }
         }
 
         if n_one > input.len() / 2 {
-            gamma[b] = "1"
+            gamma[bit_index] = "1"
         } else {
-            gamma[b] = "0"
+            gamma[bit_index] = "0"
         }
     }
 
@@ -51,19 +59,19 @@ fn run(input: &Vec<u16>, nb_bit: usize) -> (usize, usize) {
 
 fn reverse_bit(bits: Vec<&str>) -> Vec<&str> {
     bits.iter()
-        .map(|mut x| {
-            if x == &"1" {
-                x = &"0";
+        .map(|mut bit| {
+            if bit == &"1" {
+                bit = &"0";
             } else {
-                x = &"1";
+                bit = &"1";
             }
-            *x
+            *bit
         })
         .collect()
 }
 
-fn bin2vec(bin: usize, nb_bit: usize) -> Vec<usize> {
-    let output = format!("{:064b}", bin);
+fn bin2vec(value: usize, nb_bit: usize) -> Vec<usize> {
+    let output = format!("{:064b}", value);
     let output = &output[(64 - nb_bit)..];
     let output: Vec<usize> = output
         .chars()
@@ -80,19 +88,20 @@ enum LifeSupportRating {
 fn filter_input(input: &Vec<u16>, value: Vec<usize>, kind: LifeSupportRating) -> u16 {
     let mut output = input.clone();
     let mut bit: Vec<usize> = Vec::with_capacity(value.len());
-    for b in (0..value.len()).rev() {
+    for bit_index in (0..value.len()).rev() {
         // Initialise bit vector
-        bit.push(2usize.pow(b as u32));
+        bit.push(2usize.pow(bit_index as u32));
     }
     dbg!(&input);
     dbg!(&value);
 
-    for b in 0..value.len() {
+    let mut bit_index = 0;
+    while output.len() > 1 {
         // Determine number of one and zero
         let mut n_one = 0;
         let mut n_zero = 0;
-        for v in &output {
-            if v & bit[b] as u16 > 0 {
+        for item in &output {
+            if item & bit[bit_index] as u16 > 0 {
                 n_one += 1;
             } else {
                 n_zero += 1;
@@ -104,54 +113,52 @@ fn filter_input(input: &Vec<u16>, value: Vec<usize>, kind: LifeSupportRating) ->
         match kind {
             LifeSupportRating::Ogr => {
                 if n_one == n_zero {
-                    output.retain(|&x| x & bit[b] as u16 > 0);
+                    output.retain(|&x| x & bit[bit_index] as u16 > 0);
                 } else if n_one > n_zero {
                     output.retain(|&x| {
                         dbg!(x);
-                        dbg!(&bit[b]);
-                        dbg!(x & bit[b] as u16);
-                        dbg!(value[b]);
-                        (x & bit[b] as u16) > 0
+                        dbg!(&bit[bit_index]);
+                        dbg!(x & bit[bit_index] as u16);
+                        dbg!(value[bit_index]);
+                        (x & bit[bit_index] as u16) > 0
                     });
                 } else {
                     output.retain(|&x| {
                         dbg!(x);
-                        dbg!(&bit[b]);
-                        dbg!(x & bit[b] as u16);
-                        dbg!(value[b]);
-                        (x & bit[b] as u16) == 0
+                        dbg!(&bit[bit_index]);
+                        dbg!(x & bit[bit_index] as u16);
+                        dbg!(value[bit_index]);
+                        (x & bit[bit_index] as u16) == 0
                     });
                 }
             }
             LifeSupportRating::Csr => {
                 if n_one == n_zero {
-                    output.retain(|&x| x & bit[b] as u16 == 0);
+                    output.retain(|&x| x & bit[bit_index] as u16 == 0);
                 } else if n_one > n_zero {
                     output.retain(|&x| {
                         dbg!(x);
-                        dbg!(&bit[b]);
-                        dbg!(x & bit[b] as u16);
-                        dbg!(value[b]);
-                        (x & bit[b] as u16) == 0
+                        dbg!(&bit[bit_index]);
+                        dbg!(x & bit[bit_index] as u16);
+                        dbg!(value[bit_index]);
+                        (x & bit[bit_index] as u16) == 0
                     });
                 } else {
                     output.retain(|&x| {
                         dbg!(x);
-                        dbg!(&bit[b]);
-                        dbg!(x & bit[b] as u16);
-                        dbg!(value[b]);
-                        (x & bit[b] as u16) > 0
+                        dbg!(&bit[bit_index]);
+                        dbg!(x & bit[bit_index] as u16);
+                        dbg!(value[bit_index]);
+                        (x & bit[bit_index] as u16) > 0
                     });
                 }
             }
         }
-        if output.len() == 1 {
-            dbg!(&output);
-            return output[0];
-        }
+        // Show current output
         dbg!(&output);
+        // Next bit
+        bit_index += 1;
     }
-    // This part should not reached
     output[0]
 }
 
